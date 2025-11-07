@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Bus, Train, Star, Bell } from 'lucide-react';
+import { Bus, Train, Star, Bell, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, TransportLine } from '../lib/supabase';
+import { getUserLocation, UserLocation } from '../services/userLocation';
 
 export default function RealTimePage() {
   const { user } = useAuth();
   const [lines, setLines] = useState<TransportLine[]>([]);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
   useEffect(() => {
     fetchLines();
-  }, []);
+    if (user) {
+      fetchUserLocation();
+    }
+  }, [user]);
 
   const fetchLines = async () => {
     const { data } = await supabase
@@ -18,6 +23,12 @@ export default function RealTimePage() {
       .order('name');
 
     if (data) setLines(data);
+  };
+
+  const fetchUserLocation = async () => {
+    if (!user) return;
+    const location = await getUserLocation(user.id);
+    setUserLocation(location);
   };
 
   const toggleFavorite = async (lineId: string) => {
@@ -44,6 +55,16 @@ export default function RealTimePage() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Tempo Real</h1>
         <p className="text-gray-600 mb-8">Acompanhe o status do transporte público em tempo real</p>
+
+        {userLocation && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 mb-6 flex items-start space-x-3">
+            <MapPin className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-blue-900">Sua Localização</p>
+              <p className="text-sm text-blue-700">{userLocation.address}, {userLocation.city} - {userLocation.state}</p>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <table className="w-full">

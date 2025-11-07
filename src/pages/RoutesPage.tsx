@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Bus, Train, Bike, Users, MapPin, Clock, DollarSign, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bus, Train, Bike, Users, MapPin, Clock, DollarSign, AlertCircle, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { calculateMultimodalRoute, calculateEstimatedCost } from '../services/googleMaps';
+import { getUserLocation, UserLocation } from '../services/userLocation';
 
 type Modal = 'bus' | 'metro' | 'bike' | 'walking' | 'carpool';
 
@@ -14,6 +15,23 @@ export default function RoutesPage() {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [useHomeAsOrigin, setUseHomeAsOrigin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserLocation();
+    }
+  }, [user]);
+
+  const fetchUserLocation = async () => {
+    if (!user) return;
+    const location = await getUserLocation(user.id);
+    setUserLocation(location);
+    if (location) {
+      setUseHomeAsOrigin(true);
+    }
+  };
 
   const modals = [
     { id: 'bus' as Modal, icon: Bus, label: 'Ônibus', color: 'text-orange-600' },
@@ -30,7 +48,11 @@ export default function RoutesPage() {
   };
 
   const calculateRoute = async (isSustainable: boolean) => {
-    if (!origin || !destination || selectedModals.length === 0) {
+    const finalOrigin = useHomeAsOrigin && userLocation ?
+      `${userLocation.address}, ${userLocation.city}, ${userLocation.state}` :
+      origin;
+
+    if (!finalOrigin || !destination || selectedModals.length === 0) {
       setError('Por favor, preencha origem, destino e selecione pelo menos um meio de transporte.');
       return;
     }
@@ -39,7 +61,7 @@ export default function RoutesPage() {
     setError('');
 
     try {
-      const routeData = await calculateMultimodalRoute(origin, destination, selectedModals);
+      const routeData = await calculateMultimodalRoute(finalOrigin, destination, selectedModals);
 
       if (!routeData) {
         setError('Não foi possível calcular a rota. Verifique os endereços e tente novamente.');
@@ -80,7 +102,7 @@ export default function RoutesPage() {
         await supabase.from('routes').insert([
           {
             user_id: user.id,
-            origin,
+            origin: finalOrigin,
             destination,
             modals: selectedModals,
             total_time: calculatedRoutes[0].totalTime,
@@ -112,14 +134,36 @@ export default function RoutesPage() {
             </div>
           )}
 
+          {userLocation && (
+            <div className="mb-6 bg-green-50 border-2 border-green-200 rounded-lg p-4">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useHomeAsOrigin}
+                  onChange={(e) => setUseHomeAsOrigin(e.target.checked)}
+                  className="w-5 h-5 rounded accent-[#1EB980]"
+                />
+                <div>
+                  <p className="font-semibold text-green-900">Usar meu endereço como ponto de partida</p>
+                  <p className="text-sm text-green-700">{userLocation.address}, {userLocation.city} - {userLocation.state}</p>
+                </div>
+              </label>
+            </div>
+          )}
+
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Origem</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                {useHomeAsOrigin && userLocation ? 'Origem (Seu Endereço)' : 'Origem'}
+              </label>
               <input
                 type="text"
                 value={origin}
                 onChange={(e) => setOrigin(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-[#1EB980] focus:outline-none"
+                disabled={useHomeAsOrigin}
+                className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-[#1EB980] focus:outline-none ${
+                  useHomeAsOrigin ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
                 placeholder="Ex: Avenida Paulista, São Paulo, SP"
               />
             </div>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { LogOut, Leaf, Route, MapPin, Calendar } from 'lucide-react';
+import { LogOut, Leaf, Route, MapPin, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import UserAddressForm from '../components/UserAddressForm';
 
 export default function ProfilePage() {
   const { user, profile, signIn, signUp, signOut, loading } = useAuth();
@@ -10,6 +11,8 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [routes, setRoutes] = useState<any[]>([]);
   const [stats, setStats] = useState({ totalCO2: 0, totalRoutes: 0 });
+  const [expandedSections, setExpandedSections] = useState({ address: true, routes: true });
+  const [savingAddress, setSavingAddress] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -159,6 +162,62 @@ export default function ProfilePage() {
             <div className="text-4xl font-bold mb-2">{stats.totalRoutes}</div>
             <div className="text-blue-100">Rotas Salvas</div>
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+          <button
+            onClick={() => setExpandedSections(prev => ({ ...prev, address: !prev.address }))}
+            className="w-full flex items-center justify-between px-8 py-6 hover:bg-gray-50 transition"
+          >
+            <div className="flex items-center space-x-3">
+              <MapPin className="h-6 w-6 text-[#1EB980]" />
+              <h2 className="text-2xl font-bold text-gray-900">Meu Endereço</h2>
+            </div>
+            {expandedSections.address ? (
+              <ChevronUp className="h-6 w-6 text-gray-500" />
+            ) : (
+              <ChevronDown className="h-6 w-6 text-gray-500" />
+            )}
+          </button>
+
+          {expandedSections.address && (
+            <div className="px-8 pb-8 border-t border-gray-200">
+              {profile && (
+                <UserAddressForm
+                  initialData={{
+                    address: profile.address || '',
+                    city: profile.city || '',
+                    state: profile.state || '',
+                    zip_code: profile.zip_code || '',
+                    complement: profile.complement || '',
+                    latitude: profile.latitude || 0,
+                    longitude: profile.longitude || 0,
+                  }}
+                  onSave={async (data) => {
+                    setSavingAddress(true);
+                    try {
+                      await supabase
+                        .from('profiles')
+                        .update({
+                          address: data.address,
+                          city: data.city,
+                          state: data.state,
+                          zip_code: data.zip_code,
+                          complement: data.complement,
+                          latitude: data.latitude,
+                          longitude: data.longitude,
+                          updated_at: new Date().toISOString()
+                        })
+                        .eq('id', user!.id);
+                    } finally {
+                      setSavingAddress(false);
+                    }
+                  }}
+                  loading={savingAddress}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-8">
