@@ -1,29 +1,31 @@
 import { useState, useEffect } from 'react';
-import { Bus, Train, Star, Bell, MapPin } from 'lucide-react';
+import { Bus, Star, Bell, MapPin, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, TransportLine } from '../lib/supabase';
 import { getUserLocation, UserLocation } from '../services/userLocation';
+
+interface BusLine {
+  linha: string;
+  nome_da_linha?: string;
+  destino?: string;
+  minutos: number;
+  horario: string;
+}
 
 export default function RealTimePage() {
   const { user } = useAuth();
   const [lines, setLines] = useState<TransportLine[]>([]);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [busData, setBusData] = useState<BusLine[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [userFavorites, setUserFavorites] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchLines();
     if (user) {
       fetchUserLocation();
+      fetchFavorites();
     }
   }, [user]);
-
-  const fetchLines = async () => {
-    const { data } = await supabase
-      .from('transport_lines')
-      .select('*')
-      .order('name');
-
-    if (data) setLines(data);
-  };
 
   const fetchUserLocation = async () => {
     if (!user) return;
@@ -31,23 +33,48 @@ export default function RealTimePage() {
     setUserLocation(location);
   };
 
-  const toggleFavorite = async (lineId: string) => {
+  const fetchFavorites = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('user_favorites')
+      .select('line_number')
+      .eq('user_id', user.id);
+
+    if (data) {
+      setUserFavorites(data.map(f => f.line_number));
+    }
+  };
+
+  const toggleFavorite = async (lineNumber: string) => {
     if (!user) return;
 
-    const line = lines.find(l => l.id === lineId);
-    if (!line) return;
+    const isFavorited = userFavorites.includes(lineNumber);
 
-    const isFavorited = line.favorited_by.includes(user.id);
-    const newFavorites = isFavorited
-      ? line.favorited_by.filter(id => id !== user.id)
-      : [...line.favorited_by, user.id];
+    if (isFavorited) {
+      await supabase
+        .from('user_favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('line_number', lineNumber);
+    } else {
+      await supabase
+        .from('user_favorites')
+        .insert({
+          user_id: user.id,
+          line_number: lineNumber
+        });
+    }
 
-    await supabase
-      .from('transport_lines')
-      .update({ favorited_by: newFavorites })
-      .eq('id', lineId);
+    fetchFavorites();
+  };
 
-    fetchLines();
+  const formatMinutes = (minutes: number): string => {
+    if (minutes < 1) return 'Agora';
+    if (minutes === 1) return '1 minuto';
+    if (minutes < 60) return `${minutes} minutos`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
   };
 
   return (
@@ -66,6 +93,16 @@ export default function RealTimePage() {
           </div>
         )}
 
+        {!userLocation && (
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-6 flex items-start space-x-3">
+            <MapPin className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-yellow-900">Endereço não cadastrado</p>
+              <p className="text-sm text-yellow-700">Acesse o Perfil e cadastre seu endereço para ver ônibus próximos</p>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -77,7 +114,7 @@ export default function RealTimePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {realTimeData.loading && (
+              {loading && (
                 <tr>
                   <td colSpan={4} className="px-6 py-8 text-center">
                     <div className="flex items-center justify-center space-x-2">
@@ -88,7 +125,7 @@ export default function RealTimePage() {
                 </tr>
               )}
 
-              {!realTimeData.loading && realTimeData.linhas.length === 0 && (
+              {!loading && busData.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-6 py-8 text-center text-gray-600">
                     {userLocation ? 'Nenhum ônibus previsto no momento' : 'Cadastre seu endereço para ver ônibus próximos'}
@@ -96,7 +133,7 @@ export default function RealTimePage() {
                 </tr>
               )}
 
-              {realTimeData.linhas.map((linha) => {
+              {busData.map((linha) => {
                 const isFavorited = userFavorites.includes(linha.linha);
                 const minutes = linha.minutos || 0;
 
@@ -107,7 +144,7 @@ export default function RealTimePage() {
                         <Bus className="h-6 w-6 text-orange-600" />
                         <div>
                           <div className="font-bold text-gray-900">{linha.linha}</div>
-                          <div className="text-sm text-gray-600">{linha.nome_da_linha || linha.destino}</div>
+                          <div className="text-sm text-gray-600">{linha.nome_da_linha || linha.destino || 'Destino'}</div>
                         </div>
                       </div>
                     </td>
