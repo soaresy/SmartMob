@@ -77,32 +77,59 @@ export default function RealTimePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {lines.map((line) => {
-                const Icon = line.type === 'bus' ? Bus : Train;
-                const isFavorited = user && line.favorited_by.includes(user.id);
+              {realTimeData.loading && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <Loader className="h-5 w-5 animate-spin text-[#1EB980]" />
+                      <span className="text-gray-600">Carregando dados em tempo real...</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {!realTimeData.loading && realTimeData.linhas.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-600">
+                    {userLocation ? 'Nenhum ônibus previsto no momento' : 'Cadastre seu endereço para ver ônibus próximos'}
+                  </td>
+                </tr>
+              )}
+
+              {realTimeData.linhas.map((linha) => {
+                const isFavorited = userFavorites.includes(linha.linha);
+                const minutes = linha.minutos || 0;
 
                 return (
-                  <tr key={line.id} className="hover:bg-gray-50 transition">
+                  <tr key={`${linha.linha}-${linha.horario}`} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
-                        <Icon className={`h-6 w-6 ${line.type === 'bus' ? 'text-orange-600' : 'text-blue-600'}`} />
-                        <span className="font-medium text-gray-900">{line.name}</span>
+                        <Bus className="h-6 w-6 text-orange-600" />
+                        <div>
+                          <div className="font-bold text-gray-900">{linha.linha}</div>
+                          <div className="text-sm text-gray-600">{linha.nome_da_linha || linha.destino}</div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        line.status === 'on_time'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                        minutes <= 2
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-green-100 text-green-700'
                       }`}>
-                        {line.status === 'on_time' ? 'No horário' : 'Atrasado'}
+                        {minutes <= 2 ? 'Chegando' : 'No horário'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-700">{line.next_arrival}</td>
+                    <td className="px-6 py-4 text-gray-700">
+                      <div>
+                        <div className="font-medium">{formatMinutes(minutes)}</div>
+                        <div className="text-sm text-gray-500">{linha.horario}</div>
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end space-x-2">
                         <button
-                          onClick={() => toggleFavorite(line.id)}
+                          onClick={() => toggleFavorite(linha.linha)}
                           className={`p-2 rounded-lg transition ${
                             isFavorited ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400 hover:text-yellow-600'
                           }`}
