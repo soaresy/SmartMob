@@ -1,5 +1,6 @@
-#🚗 SmartMob
-###👥 Integrantes
+# 🚗 SmartMob
+
+### 👥 Integrantes
 
 - João Paulo Soares Amancio Filho
 - Fábio Canedo Leão 
@@ -13,7 +14,7 @@ O projeto busca melhorar a experiência dos usuários de transporte coletivo, of
 
 A iniciativa visa tornar as cidades mais conectadas, acessíveis e sustentáveis, incentivando o uso de soluções tecnológicas para redução do trânsito, emissão de poluentes e tempo de deslocamento.
 
-##🚀 Tecnologias Utilizadas
+## 🚀 Tecnologias Utilizadas
 
 O SmartMob foi desenvolvido na plataforma Bolt.new, que oferece um ambiente moderno de desenvolvimento Full Stack, combinando as seguintes tecnologias:
 
@@ -33,7 +34,7 @@ O SmartMob foi desenvolvido na plataforma Bolt.new, que oferece um ambiente mode
 
 ☁️ **Bolt Host / Vercel** — para deploy rápido e integração contínua com GitHub
 
-##🧠 Como Executar o Projeto Localmente
+## 🧠 Como Executar o Projeto Localmente
 
 Acesse o site hospedado em:
 👉 https://smartmob.bolt.host/
